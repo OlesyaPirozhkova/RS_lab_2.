@@ -221,136 +221,96 @@ def get_reviews_stats():
  <img width="941" height="446" alt="image" src="https://github.com/user-attachments/assets/cb749389-2bcf-42a2-9cca-64a2e7199ed0" />
 
 Успешно создано REST API для управления отзывами о товарах
-# Шаг 3. Генерация кода
 
-**Выполнила в терминале команду для генерации Python-классов из .proto файла:**
 
-```
-python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. newsfeed.proto
-```
+# Шаг 3. Заблокировать доступ к API для UserAgent BadBot через Nginx.
 
-![Скриншот 23-09-2025 210330](https://github.com/user-attachments/assets/2e6d1733-548f-4a16-99e1-f9e272f3d93a)
+**Установка Nginx**
 
-# Шаг 4. Реализация сервера
+Успешно установлен и работает
 
-**Создала файлы server.py, client.py**
+<img width="973" height="458" alt="image" src="https://github.com/user-attachments/assets/3d7f338d-f04c-4558-823b-4ac6982cfe86" />
 
-![Скриншот 23-09-2025 211221](https://github.com/user-attachments/assets/c277a08f-5046-487f-9375-cf9c9da6b86f)
+**Создание конфигурации для блокировки BadBot**
 
-![Скриншот 23-09-2025 211240](https://github.com/user-attachments/assets/f90fd3ed-70cd-47a0-81ec-3e93c55acbc1)
-
-**Написала код сервера**
-
-![Скриншот 23-09-2025 211539](https://github.com/user-attachments/assets/110c8297-c3a7-4433-83ab-f4c0eef1f183)
+**Создаем конфигурационный файл:**
 
 ```
-import grpc
-from concurrent import futures
-import time
-import newsfeed_pb2
-import newsfeed_pb2_grpc
-
-class NewsFeedServicer(newsfeed_pb2_grpc.NewsFeedServicer):
-    def GetLatestNews(self, request, context):
-        print(f"Получен запрос для категории: {request.category}")
-        
-        news_data = {
-            "technology": [
-                {"title": "Новый ИИ от OpenAI", "content": "Представлена новая модель искусственного интеллекта"},
-                {"title": "Запуск смартфона", "content": "Samsung представил новый флагман"},
-            ],
-            "sports": [
-                {"title": "Футбольный матч", "content": "Результаты чемпионата"},
-            ]
-        }
-        
-        news_list = news_data.get(request.category.lower(), [])
-        print(f"Найдено новостей: {len(news_list)}")
-        
-        for i, news in enumerate(news_list):
-            response = newsfeed_pb2.NewsResponse(
-                title=news["title"],
-                content=news["content"],
-                category=request.category
-            )
-            print(f"Отправляю новость: {news['title']}")
-            yield response
-            time.sleep(2)
-
-def serve():
-    print("Запуск сервера...")
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    newsfeed_pb2_grpc.add_NewsFeedServicer_to_server(NewsFeedServicer(), server)
-    server.add_insecure_port('[::]:50051')
-    server.start()
-    print("Сервер запущен на порту 50051")
-    print("Ожидаю подключений...")
-    server.wait_for_termination()
-
-if name == 'main':
-    serve()
+sudo bash -c 'cat > /etc/nginx/sites-available/reviews_api << "EOF"
+server {
+    listen 80;
+    server_name localhost;
+    
+    # Блокировка UserAgent "BadBot"
+    if ($http_user_agent ~* (BadBot|badbot|Bad_Bot)) {
+        return 403;
+    }
+    
+    # Главная страница
+    location / {
+        root /var/www/html;
+        index index.html index.htm;
+        try_files $uri $uri/ =404;
+    }
+    
+    # Проксирование Flask API
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF'
 ```
 
-**Написала код клиента**
-
-![Скриншот 23-09-2025 211611](https://github.com/user-attachments/assets/a2c529a9-a3c3-4c22-9dd3-d3331d919ec1)
+**активируем конфигурацию**
 
 ```
-import grpc
-from concurrent import futures
-import time
-import newsfeed_pb2
-import newsfeed_pb2_grpc
+# Создаем ссылку
+sudo ln -sf /etc/nginx/sites-available/reviews_api /etc/nginx/sites-enabled/
 
-class NewsFeedServicer(newsfeed_pb2_grpc.NewsFeedServicer):
-    def GetLatestNews(self, request, context):
-        print(f"Получен запрос для категории: {request.category}")
-        
-        news_data = {
-            "technology": [
-                {"title": "Новый ИИ от OpenAI", "content": "Представлена новая модель искусственного интеллекта"},
-                {"title": "Запуск смартфона", "content": "Samsung представил новый флагман"},
-            ],
-            "sports": [
-                {"title": "Футбольный матч", "content": "Результаты чемпионата"},
-            ]
-        }
-        
-        news_list = news_data.get(request.category.lower(), [])
-        print(f"Найдено новостей: {len(news_list)}")
-        
-        for i, news in enumerate(news_list):
-            response = newsfeed_pb2.NewsResponse(
-                title=news["title"],
-                content=news["content"],
-                category=request.category
-            )
-            print(f"Отправляю новость: {news['title']}")
-            yield response
-            time.sleep(2)
+# Удаляем default если есть
+sudo rm -f /etc/nginx/sites-enabled/default
 
-def serve():
-    print("Запуск сервера...")
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    newsfeed_pb2_grpc.add_NewsFeedServicer_to_server(NewsFeedServicer(), server)
-    server.add_insecure_port('[::]:50051')
-    server.start()
-    print("Сервер запущен на порту 50051")
-    print("Ожидаю подключений...")
-    server.wait_for_termination()
+# Проверяем синтаксис
+sudo nginx -t
 
-if name == 'main':
-    serve()
+# Перезагружаем
+sudo systemctl reload nginx
 ```
 
-# Шаг 5. Запуск и проверка
+<img width="766" height="109" alt="image" src="https://github.com/user-attachments/assets/3a7f9f02-f397-48a8-b279-ee21b8e42ced" />
 
-**Запустила и проверила файлы**
 
-![Скриншот 23-09-2025 221810](https://github.com/user-attachments/assets/494713a9-d390-41fe-8466-900ee8052e2f)
+все работает корректно
 
-![Скриншот 23-09-2025 221822](https://github.com/user-attachments/assets/8c62e228-c443-4b0f-9c3d-7260fb3f8c14)
+**Проверка**
+
+Делаем обычный запрос. Работает.
+
+```
+curl -H "User-Agent: Mozilla/5.0" http://localhost/api/reviews
+```
+
+<img width="863" height="465" alt="image" src="https://github.com/user-attachments/assets/903de721-83c6-4345-ab2f-e9bcc7987d68" />
+
+Делаем запрос на badbot. Выдает ошибку 403.
+
+```
+curl -H "User-Agent: BadBot" http://localhost/api/reviews
+```
+
+<img width="838" height="241" alt="image" src="https://github.com/user-attachments/assets/ab7fc27a-0b1c-42fe-b766-1394e7374402" />
+
+Также проверим варианты.
+
+<img width="804" height="217" alt="image" src="https://github.com/user-attachments/assets/28aec5f2-ddcb-4598-b486-74e51fe3f9da" />
+
+<img width="851" height="226" alt="image" src="https://github.com/user-attachments/assets/f9e787e8-ae52-4558-932e-c3ce35b621f1" />
+
+Доступ к API заблокирован для UserAgent BadBot через Nginx. Блокировка работает корректно для всех вариантов написания BadBot.
 
 # Вывод 
-В ходе работы освоены основы gRPC: создание .proto-контракта, кодогенерация, реализация сервера и клиента. Успешно протестировано простое взаимодействие между ними, что подтвердило усвоение принципов RPC.
-
+Успешно реализовано REST API для отзывов о товарах с полным CRUD-функционалом и защищено Nginx, который корректно блокирует доступ для вредоносных ботов по UserAgent, обеспечивая безопасность API.** Все этапы работы выполнены: HTTP-анализ через telnet/curl, разработка бизнес-логики на Flask, настройка обратного прокси с фильтрацией трафика.
