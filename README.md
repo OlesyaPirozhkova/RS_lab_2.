@@ -45,39 +45,38 @@ venv.
 o Микрофреймворк Flask для реализации REST API.
 - Доступ к сети Интернет.
 
-# Шаг 1. Подготовка окружения (Ubuntu 20.04+)
+Для создания каталога проекта мы будем использовать встроенный
+терминал. Откройте его, выбрав в верхнем меню Terminal -> New Terminal
+• В открывшемся терминале выполните следующие команды для создания и
+перехода в директорию проекта:
 
-**Обновила пакеты и установила Python:**
+<img width="614" height="116" alt="image" src="https://github.com/user-attachments/assets/8f10bfe4-8646-432d-8ace-602cc37b447d" />
+# Шаг 1. Отправка GET-запроса к API карт Яндексаю
 
-```
-sudo apt update
-```
-
-![Скриншот 23-09-2025 203553](https://github.com/user-attachments/assets/b38af39f-3700-4000-9db1-72060f2c810e)
-
-```
-sudo apt install python3 python3-pip python3-venv -y
-```
-
-![Скриншот 23-09-2025 203850](https://github.com/user-attachments/assets/88534e1b-0f74-401b-a5ff-99374d9a6e74)
-
-**Создала и активировала виртуальное окружение**
+**С использованием telnet:**
 
 ```
-mkdir grpc_news_aggregator
-cd grpc_news_aggregator
-python3 -m venv venv
-source venv/bin/activate
+telnet geocode-maps.yandex.ru 80
 ```
 
-![Скриншот 23-09-2025 205646](https://github.com/user-attachments/assets/dae5b309-a296-4fb9-913d-a691987d6258)
-
-**Установила библиотеку gRPC:**
+**После подключения введем:**
 
 ```
-pip install grpcio grpcio-tools
+GET /1.x/?apikey=ваш_ключ&geocode=Москва,+Тверская+улица,+дом+7&format=json HTTP/1.1
+Host: geocode-maps.yandex.ru
 ```
-![Скриншот 23-09-2025 205646](https://github.com/user-attachments/assets/6e5ca0ea-6aff-4228-bb2a-1d8e0213d740)
+
+**Получим:**
+
+<img width="1172" height="491" alt="image" src="https://github.com/user-attachments/assets/d02094a9-3ada-4198-9088-7e7e45df6f01" />
+
+-Код состояния: 301 Moved Permanently - постоянное перенаправление
+-Протокол: HTTP/1.1
+-Сервер: nginx (популярный веб-сервер)
+-Заголовок Location: https://nominatim.openstreetmap.org/... - указывает на HTTPS-версию
+-Тело ответа: HTML-страница с сообщением о перенаправлении
+
+В ходе выполнения задания был отправлен GET-запрос к API OpenStreetMap через telnet. Получен ответ с кодом состояния 301 Moved Permanently, что свидетельствует о постоянном перенаправлении с HTTP на HTTPS-версию сервиса. Заголовок Location содержал URL для HTTPS-соединения. Данный ответ демонстрирует практику обязательного использования защищенных соединений в современных веб-сервисах и механизм автоматического перенаправления пользователей на безопасную версию сайта.
 
 # Шаг 2. Определение сервиса в .proto файле
 
