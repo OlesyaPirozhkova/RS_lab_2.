@@ -1,5 +1,5 @@
 # RS_lab_2.
-# RS_lab_1
+
 
 
 _Лабораторная работа 02. Проектирование и реализация клиент-серверной
@@ -64,8 +64,9 @@ telnet geocode-maps.yandex.ru 80
 **После подключения введем:**
 
 ```
-GET /1.x/?apikey=ваш_ключ&geocode=Москва,+Тверская+улица,+дом+7&format=json HTTP/1.1
-Host: geocode-maps.yandex.ru
+GET /search?q=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%A2%D0%B2%D0%B5%D1%80%D1%81%D0%BA%D0%B0%D1%8F%20%D1%83%D0%BB%D0%B8%D1%86%D0%B0%2C%207&format=json HTTP/1.1
+Host: nominatim.openstreetmap.org
+
 ```
 
 **Получим:**
@@ -73,9 +74,13 @@ Host: geocode-maps.yandex.ru
 <img width="1172" height="491" alt="image" src="https://github.com/user-attachments/assets/d02094a9-3ada-4198-9088-7e7e45df6f01" />
 
 -Код состояния: 301 Moved Permanently - постоянное перенаправление
+
 -Протокол: HTTP/1.1
+
 -Сервер: nginx (популярный веб-сервер)
+
 -Заголовок Location: https://nominatim.openstreetmap.org/... - указывает на HTTPS-версию
+
 -Тело ответа: HTML-страница с сообщением о перенаправлении
 
 В ходе выполнения задания был отправлен GET-запрос к API OpenStreetMap через telnet. Получен ответ с кодом состояния 301 Moved Permanently, что свидетельствует о постоянном перенаправлении с HTTP на HTTPS-версию сервиса. Заголовок Location содержал URL для HTTPS-соединения. Данный ответ демонстрирует практику обязательного использования защищенных соединений в современных веб-сервисах и механизм автоматического перенаправления пользователей на безопасную версию сайта.
