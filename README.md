@@ -51,7 +51,9 @@ o Микрофреймворк Flask для реализации REST API.
 перехода в директорию проекта:
 
 <img width="614" height="116" alt="image" src="https://github.com/user-attachments/assets/8f10bfe4-8646-432d-8ace-602cc37b447d" />
-# Шаг 1. Отправка GET-запроса к API карт Яндексаю
+
+
+# Шаг 1. Отправка GET-запроса к API карт Яндекса
 
 **С использованием telnet:**
 
@@ -78,32 +80,147 @@ Host: geocode-maps.yandex.ru
 
 В ходе выполнения задания был отправлен GET-запрос к API OpenStreetMap через telnet. Получен ответ с кодом состояния 301 Moved Permanently, что свидетельствует о постоянном перенаправлении с HTTP на HTTPS-версию сервиса. Заголовок Location содержал URL для HTTPS-соединения. Данный ответ демонстрирует практику обязательного использования защищенных соединений в современных веб-сервисах и механизм автоматического перенаправления пользователей на безопасную версию сайта.
 
-# Шаг 2. Определение сервиса в .proto файле
+# Шаг 2. API для "Отзывы о товарах" 
 
-**Создала файл newsfeed.proto**
+**Скачаем Flask**
 
+<img width="992" height="458" alt="image" src="https://github.com/user-attachments/assets/f6922d5b-7506-4b28-b9ac-68286d271740" />
+
+Создано Python-окружение с установленным Flask.
+
+**Создание файла app.py**
+
+<img width="1176" height="843" alt="image" src="https://github.com/user-attachments/assets/6697624d-f584-484e-a846-a85c19a696c9" />
+
+**Реализованные эндпоинты API**
+GET /api/reviews - Получить все отзывы
 ```
-syntax = "proto3";
-
-package newsfeed;
-
-service NewsFeed {
-    rpc GetLatestNews(NewsRequest) returns (stream NewsResponse) {}
-}
-
-message NewsRequest {
-    string category = 1;
-}
-
-message NewsResponse {
-    string title = 1;
-    string content = 2;
-    string category = 3;
-}
+@app.route('/api/reviews', methods=['GET'])
+def get_all_reviews():
+    return jsonify({
+        'reviews': reviews,
+        'count': len(reviews)
+    })
 ```
+Проводим тестирование
 
-![Скриншот 23-09-2025 210143](https://github.com/user-attachments/assets/940d3390-581b-4ef3-b982-e7d6d9da7ea2)
+<img width="1009" height="424" alt="image" src="https://github.com/user-attachments/assets/a0e7373c-4e7e-48b0-b685-e7d87ab2db05" />
 
+GET /api/reviews/<id> - Получить отзыв по ID
+```
+@app.route('/api/reviews/<int:review_id>', methods=['GET'])
+def get_review(review_id):
+    for review in reviews:
+        if review['id'] == review_id:
+            return jsonify(review)
+    return jsonify({'error': 'Отзыв не найден'}), 404
+```
+Проводим тестирование
+
+<img width="1014" height="232" alt="image" src="https://github.com/user-attachments/assets/67ba2898-eb5a-4c0d-af84-581f54965bcc" />
+
+GET /api/reviews/product/<product_id> - Отзывы по товару
+```
+@app.route('/api/reviews/product/<int:product_id>', methods=['GET'])
+def get_reviews_by_product(product_id):
+    product_reviews = [r for r in reviews if r['product_id'] == product_id]
+    
+    if not product_reviews:
+        return jsonify({
+            'message': f'Отзывы для товара {product_id} не найдены',
+            'reviews': [],
+            'count': 0
+        })
+    
+    avg_rating = sum(r['rating'] for r in product_reviews) / len(product_reviews)
+    
+    return jsonify({
+        'product_id': product_id,
+        'reviews': product_reviews,
+        'count': len(product_reviews),
+        'average_rating': round(avg_rating, 2)
+    })
+```
+Проводим тестирование
+
+<img width="1021" height="481" alt="image" src="https://github.com/user-attachments/assets/7402d680-5fc5-4509-b3e8-2f384eb63412" />
+
+ POST /api/reviews - Создать новый отзыв
+```
+@app.route('/api/reviews', methods=['POST'])
+def create_review():
+    global next_review_id
+    data = request.json
+    
+    # Валидация
+    if not data:
+        return jsonify({'error': 'Требуются данные в формате JSON'}), 400
+    
+    required_fields = ['product_id', 'rating', 'text']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'Отсутствует обязательное поле: {field}'}), 400
+    
+    # Валидация рейтинга (1-5)
+    if not isinstance(data['rating'], int) or data['rating'] < 1 or data['rating'] > 5:
+        return jsonify({'error': 'Рейтинг должен быть целым числом от 1 до 5'}), 400
+    
+    # Создание отзыва
+    new_review = {
+        'id': next_review_id,
+        'product_id': data['product_id'],
+        'rating': data['rating'],
+        'text': data['text'],
+        'created_at': datetime.now().isoformat()
+    }
+    
+    reviews.append(new_review)
+    next_review_id += 1
+    
+    return jsonify(new_review), 201
+```
+ Проводим тестирование
+
+ <img width="1019" height="288" alt="image" src="https://github.com/user-attachments/assets/4045559d-19d6-43aa-b785-c8195dddfdbe" />
+
+ GET /api/reviews/stats - Статистика по отзывам
+```
+@app.route('/api/reviews/stats', methods=['GET'])
+def get_reviews_stats():
+    if not reviews:
+        return jsonify({'message': 'Нет отзывов для анализа'})
+    
+    total_avg = sum(r['rating'] for r in reviews) / len(reviews)
+    
+    products_stats = {}
+    for review in reviews:
+        pid = review['product_id']
+        if pid not in products_stats:
+            products_stats[pid] = {
+                'product_id': pid,
+                'review_count': 0,
+                'ratings': []
+            }
+        products_stats[pid]['review_count'] += 1
+        products_stats[pid]['ratings'].append(review['rating'])
+    
+    for pid in products_stats:
+        ratings = products_stats[pid]['ratings']
+        products_stats[pid]['average_rating'] = round(sum(ratings) / len(ratings), 2)
+        products_stats[pid].pop('ratings')
+    
+    return jsonify({
+        'total_reviews': len(reviews),
+        'total_products': len(products_stats),
+        'overall_average_rating': round(total_avg, 2),
+        'products': list(products_stats.values())
+    })
+```
+ Проводим тестирование
+
+ <img width="941" height="446" alt="image" src="https://github.com/user-attachments/assets/cb749389-2bcf-42a2-9cca-64a2e7199ed0" />
+
+Успешно создано REST API для управления отзывами о товарах
 # Шаг 3. Генерация кода
 
 **Выполнила в терминале команду для генерации Python-классов из .proto файла:**
